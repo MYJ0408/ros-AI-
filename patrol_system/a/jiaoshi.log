@@ -1,0 +1,16 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+2025-09-30 15:24:17,139 | We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:17<01:08, 17.01s/it]Loading checkpoint shards:  40%|████      | 2/5 [00:27<00:38, 12.97s/it]Loading checkpoint shards:  60%|██████    | 3/5 [00:36<00:23, 11.54s/it]Loading checkpoint shards:  80%|████████  | 4/5 [01:01<00:16, 16.71s/it]Loading checkpoint shards: 100%|██████████| 5/5 [01:08<00:00, 13.01s/it]Loading checkpoint shards: 100%|██████████| 5/5 [01:08<00:00, 13.61s/it]
+2025-09-30 15:25:25,444 | Some parameters are on the meta device because they were offloaded to the cpu.
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+2025-09-30 15:25:27,267 | 已加载本地图片: /home/zzkj/a/patrol_system/a/1.jpg
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+2025-09-30 15:25:58,481 | ----- AI 原话开始 -----
+2025-09-30 15:25:58,481 | 描述：图片中有一个电脑显示器，背景中有一些办公设备和植物，但没有看到人。
+数字：2
+2025-09-30 15:25:58,481 | ----- AI 原话结束 -----
+2025-09-30 15:25:58,481 | 分析结果 result = 2
+2025-09-30 15:25:58,665 | 已更新 events.id=14 的 AI 原话
+2025-09-30 15:25:58,812 | 已写回 jiaoshi_result.json：2
+2025-09-30 15:25:58,812 | 已删除 /home/zzkj/a/patrol_system/a/1.jpg，运行结束
+[LOG] 启动命令：python3 /home/zzkj/a/patrol_system/jiaoshi.py

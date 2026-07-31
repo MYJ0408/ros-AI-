@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>巡航界面 – PGM 地图坐标拾取</title>
+<style>
+body{margin:0;background:#051b33;color:#e6f1ff;font-family:Segoe UI,Microsoft YaHei}
+.navbar{display:flex;align-items:center;padding:12px 24px;background:rgba(10,38,71,.95)}
+.back-btn{margin-left:auto;padding:6px 16px;border-radius:6px;background:#3498db;color:#fff;text-decoration:none}
+.map-box{position:relative;margin:20px auto;width:fit-content}
+#mapCanvas{border:2px solid #3498db;cursor:crosshair}
+#coordInfo{position:absolute;bottom:-30px;left:0;color:#fff;font-size:14px}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <span>巡航界面 – 点击地图获取真实坐标</span>
+  <a class="back-btn" href="/home">← 返回监控中心</a>
+</div>
+
+<div class="map-box">
+  <img id="mapImg" src="/cruise_feed" style="display:none"/>
+  <canvas id="mapCanvas"></canvas>
+  <div id="coordInfo">点击地图查看坐标</div>
+</div>
+
+<script>
+let origin, res, imgW, imgH;
+const img  = document.getElementById('mapImg');
+const cvs  = document.getElementById('mapCanvas');
+const ctx  = cvs.getContext('2d');
+const info = document.getElementById('coordInfo');
+
+/* 1. 拿到地图参数 */
+fetch('/map_info').then(r=>r.json()).then(m=>{
+  origin = m.origin;
+  res    = m.res;
+});
+
+/* 2. 等图片加载完再画 canvas */
+img.onload = ()=>{
+  imgW = img.naturalWidth;
+  imgH = img.naturalHeight;
+  cvs.width  = imgW;
+  cvs.height = imgH;
+  ctx.drawImage(img,0,0);
+};
+
+/* 3. 点击 → 像素 → 真实坐标 */
+cvs.onclick = e=>{
+  const rect = cvs.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const x_m = (origin[0] + px * res).toFixed(3);
+  const y_m = (origin[1] + (imgH - 1 - py) * res).toFixed(3);
+  info.textContent = `真实坐标: (${x_m}, ${y_m}) m`;
+};
+</script>
+</body>
+</html>

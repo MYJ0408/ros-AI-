@@ -1,0 +1,5 @@
+{
+  "yolo_model": "model/yolov8s.pt",
+  "map_pgm": "map/da_ting11.pgm",
+  "map_yaml": "map/da_ting11.yaml"
+}

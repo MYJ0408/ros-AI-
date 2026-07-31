@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI方工作室智能巡检系统</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!--<style>-->
+<!--  #card-5007 {-->
+<!--    animation: alarm-blink 0.6s infinite;-->
+<!--    /* 不要先设 none，让帧自己控制 */-->
+<!--  }-->
+<!--  @keyframes alarm-blink {-->
+<!--    0%   { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }      /* 透明但尺寸 0 */-->
+<!--    50%  { box-shadow: 0 0 25px 10px rgba(255, 0, 0, 0.95); }-->
+<!--    100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }      /* 回到透明 */-->
+<!--  }-->
+<!--</style>-->
+<style>
+:root{--primary:#3498db;--primary-dark:#2980b9;--secondary:#2ecc71;--dark-bg:#0a2647;--darker-bg:#051b33;--card-bg:rgba(30,80,140,.7);--text:#e6f1ff;--text-secondary:#a3c4e8;--success:#00ff9d;--warning:#f39c12;--danger:#e74c3c}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI','Microsoft YaHei',sans-serif}
+body{background:linear-gradient(135deg,var(--darker-bg) 0%,var(--dark-bg) 100%);color:var(--text);min-height:100vh;overflow-x:hidden;position:relative}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 20% 30%,rgba(52,152,219,.15) 0%,transparent 30%),radial-gradient(circle at 80% 70%,rgba(46,204,113,.1) 0%,transparent 30%);z-index:-1}
+.navbar{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 2rem;background:rgba(10,38,71,.9);backdrop-filter:blur(10px);border-bottom:1px solid rgba(52,152,219,.3);position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:12px}.logo-icon{color:var(--primary);font-size:1.8rem}
+.logo-text{font-size:1.5rem;font-weight:700;background:linear-gradient(90deg,var(--primary),var(--secondary));-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:1px}
+.nav-links{display:flex;gap:2rem}.nav-link{color:var(--text-secondary);text-decoration:none;font-weight:500;transition:all .3s ease;position:relative;padding:.5rem 0}
+.nav-link:hover,.nav-link.active{color:var(--text)}.nav-link::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;background:var(--primary);transition:width .3s ease}
+.nav-link:hover::after,.nav-link.active::after{width:100%}
+.system-status{display:flex;align-items:center;gap:1.5rem}.status-item{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.status-indicator{width:10px;height:10px;border-radius:50%;background:var(--success)}.status-indicator.warning{background:var(--warning)}
+.container{max-width:1800px;margin:0 auto;padding:2rem}
+.dashboard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,.1)}
+.section-title{font-size:1.8rem;font-weight:600;display:flex;align-items:center;gap:12px}.section-title i{color:var(--primary)}
+.controls{display:flex;gap:1rem;align-items:center}.btn{background:var(--card-bg);color:var(--text);border:1px solid rgba(52,152,219,.3);padding:.7rem 1.5rem;border-radius:8px;cursor:pointer;transition:all .3s ease;font-weight:500;display:flex;align-items:center;gap:8px}
+.btn:hover{background:rgba(52,152,219,.2);border-color:var(--primary);transform:translateY(-2px);box-shadow:0 0 15px rgba(52,152,219,.3)}
+.btn-primary{background:linear-gradient(90deg,var(--primary),var(--primary-dark));border:none}
+.floor-selector{display:flex;gap:.5rem;background:var(--card-bg);border-radius:8px;padding:.5rem;border:1px solid rgba(52,152,219,.3)}
+.floor-btn{padding:.5rem 1rem;border-radius:6px;cursor:pointer;background:transparent;color:var(--text-secondary);border:none;transition:all .3s ease}
+.floor-btn:hover,.floor-btn.active{background:rgba(52,152,219,.3);color:var(--text)}
+.cameras-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:1.5rem;margin-bottom:2rem}
+.camera-card{background:var(--card-bg);border-radius:12px;overflow:hidden;transition:all .3s ease;box-shadow:0 10px 20px rgba(0,0,0,.3);border:1px solid rgba(52,152,219,.2);position:relative;cursor:pointer;transform:perspective(1000px) rotateX(0deg) rotateY(0deg);transform-style:preserve-3d;will-change:transform}
+.camera-card:hover{transform:translateY(-10px) scale(1.02);box-shadow:0 15px 30px rgba(0,0,0,.4),0 0 30px rgba(52,152,219,.3);border-color:rgba(52,152,219,.4)}
+.camera-header{padding:1rem;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(255,255,255,.1)}
+.camera-title{font-weight:600;font-size:1.1rem;display:flex;align-items:center;gap:8px}
+.camera-status{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.status-badge{padding:.25rem .7rem;border-radius:20px;font-size:.75rem;font-weight:500}
+.status-active{background:rgba(0,255,157,.15);color:var(--success)}
+.status-warning{background:rgba(243,156,18,.15);color:var(--warning)}
+.status-offline{background:rgba(231,76,60,.15);color:var(--danger)}
+.camera-feed{position:relative;height:200px;overflow:hidden}.camera-feed img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.camera-card:hover .camera-feed img{transform:scale(1.05)}.camera-overlay{position:absolute;bottom:0;left:0;right:0;padding:.8rem;background:linear-gradient(transparent,rgba(0,0,0,.7));display:flex;justify-content:space-between;align-items:center}
+.camera-info{font-size:.85rem;color:var(--text-secondary)}.camera-actions{display:flex;gap:.5rem}
+.action-btn{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;transition:all .2s ease}
+.action-btn:hover{background:var(--primary);transform:scale(1.1)}
+.pagination{display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:2rem;padding:1rem;background:var(--card-bg);border-radius:12px;border:1px solid rgba(52,152,219,.2)}
+.pagination-btn{padding:.5rem 1rem;border-radius:6px;cursor:pointer;background:rgba(52,152,219,.1);color:var(--text);border:1px solid rgba(52,152,219,.3);transition:all .3s ease;min-width:40px;text-align:center}
+.pagination-btn:hover:not(.disabled){background:rgba(52,152,219,.3);border-color:var(--primary)}
+.pagination-btn.disabled{opacity:.5;cursor:not-allowed}.pagination-btn.active{background:var(--primary);color:var(--dark-bg);border-color:var(--primary)}
+.pagination-info{font-size:.9rem;color:var(--text-secondary)}
+.detail-view{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--darker-bg);z-index:1000;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .5s cubic-bezier(.22,1,.36,1),opacity .5s,visibility .5s;opacity:0;visibility:hidden}
+.detail-view.active{transform:translateY(0);opacity:1;visibility:visible}
+.detail-header{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 2rem;background:rgba(10,38,71,.95);border-bottom:1px solid rgba(52,152,219,.3)}
+.detail-title{font-size:1.5rem;font-weight:600;display:flex;align-items:center;gap:12px}
+.close-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;transition:all .3s ease;border:none}
+.close-btn:hover{background:var(--danger);transform:rotate(90deg)}
+.detail-content{display:flex;flex:1;padding:2rem;gap:2rem;overflow:hidden}
+.main-feed{flex:3;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.5);border:1px solid rgba(52,152,219,.3)}
+.main-feed img{width:100%;height:100%;object-fit:cover}
+.feed-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:1rem;background:rgba(0,0,0,.7);padding:.8rem 1.5rem;border-radius:30px;backdrop-filter:blur(10px)}
+.control-btn{width:45px;height:45px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;transition:all .2s ease;font-size:1.2rem}
+.control-btn:hover{background:var(--primary);transform:scale(1.1)}
+.detail-sidebar{flex:1;display:flex;flex-direction:column;gap:1.5rem}
+.camera-info-card,.timeline{background:var(--card-bg);border-radius:12px;padding:1.5rem;border:1px solid rgba(52,152,219,.2)}
+.info-title,.timeline-title{font-size:1.2rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid rgba(255,255,255,.1);color:var(--primary);display:flex;align-items:center;gap:10px}
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.info-item{display:flex;flex-direction:column;gap:5px}.info-label{font-size:.85rem;color:var(--text-secondary)}
+.info-value{font-weight:500}.timeline-content{height:150px;overflow-y:auto;padding-right:10px}
+.timeline-item{padding:.8rem 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:12px}
+.timeline-time{color:var(--text-secondary);font-size:.9rem;min-width:70px}
+.timeline-event{flex:1}.event-badge{display:inline-block;padding:.2rem .7rem;border-radius:20px;font-size:.8rem;margin-bottom:.3rem}
+.event-motion{background:rgba(0,255,157,.15);color:var(--success)}
+.event-alert{background:rgba(243,156,18,.15);color:var(--warning)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,152,219,.7)}70%{box-shadow:0 0 0 10px rgba(52,152,219,0)}100%{box-shadow:0 0 0 0 rgba(52,152,219,0)}}
+.pulse{animation:pulse 2s infinite}
+@media(max-width:1200px){.cameras-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}.detail-content{flex-direction:column}}
+@media(max-width:768px){.navbar{flex-direction:column;gap:1rem}.nav-links{gap:1rem;flex-wrap:wrap;justify-content:center}.system-status{margin-top:.5rem}.dashboard-header{flex-direction:column;align-items:flex-start;gap:1rem}.controls{width:100%;justify-content:center;flex-wrap:wrap}.floor-selector{width:100%;justify-content:center}.pagination{flex-wrap:wrap}}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:rgba(255,255,255,.05);border-radius:4px}::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}::-webkit-scrollbar-thumb:hover{background:var(--primary-dark)}}
+/* 放在所有样式之后，保证权重最高 */
+.camera-card.alarm,
+.camera-card.alarm:hover {
+  animation: alarm-blink 0.6s infinite !important;
+}
+
+@keyframes alarm-blink {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.8); }
+  50%  { box-shadow: 0 0 20px 8px rgba(255, 0, 0, 0.9); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+.main-feed.alarm {
+  animation: feed-alarm-blink 0.6s infinite;
+}
+
+@keyframes feed-alarm-blink {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+  50%  { box-shadow: 0 0 25px 10px rgba(255, 0, 0, 0.95); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+
+/* 2. 抽屉背景保持实色，防止透底 */
+.detail-view {
+  background: #051b33;   /* 与原 --darker-bg 同色，完全不透明 */
+}
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="logo"><i class="fas fa-shield-alt logo-icon"></i><span class="logo-text">AI方工作室智能巡检系统</span></div>
+  <div class="nav-links">
+    <a href="#" class="nav-link active" data-page="monitor"><i class="fas fa-tv"></i> 监控中心</a>
+    <a href="/event.html" class="nav-link"><i class="fas fa-history"></i> 事件记录</a>
+    <a href="/car_manager.html" class="nav-link"><i class="fas fa-cogs"></i> 设备管理</a>
+    <a href="/statistics.html" class="nav-link" data-page="data"><i class="fas fa-chart-line"></i> 数据统计</a>
+    <a href="/cruise" class="nav-link"><i class="fas fa-route"></i> 巡航界面</a>
+  </div>
+  <div class="system-status">
+    <div class="status-item"><div class="status-indicator pulse"></div><span>系统运行中</span></div>
+    <!-- 退出登录（复用原区域） -->
+    <div id="logoutArea" class="status-item" style="cursor: pointer;" title="点击退出登录">
+      <i class="fa fa-sign-out-alt text-danger"></i>
+      <span>退出登录</span>
+    </div>
+    <div class="status-item"><span id="sysTime">--:--:--</span></div>
+  </div>
+</nav>
+
+<div class="container" id="monitorPage">
+  <div class="dashboard-header">
+    <h2 class="section-title"><i class="fas fa-video"></i> 多路巡检小车实时监控</h2>
+    <div class="controls">
+      <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> 刷新画面</button>
+      <div class="floor-selector">
+        <button class="floor-btn active" data-floor="all">全部楼层</button>
+        <button class="floor-btn" data-floor="11">11楼</button>
+        <button class="floor-btn" data-floor="12">12楼</button>
+        <button class="floor-btn" data-floor="13">13楼</button>
+      </div>
+    </div>
+  </div>
+  <div class="cameras-grid" id="camerasGrid"></div>
+  <div class="pagination" id="pagination">
+    <button class="pagination-btn" id="prevPageBtn"><i class="fas fa-chevron-left"></i></button>
+    <span class="pagination-info" id="pageInfo">第 1 页 / 共 1 页</span>
+    <button class="pagination-btn" id="nextPageBtn"><i class="fas fa-chevron-right"></i></button>
+  </div>
+</div>
+
+<!-- 详情抽屉 -->
+<div class="detail-view" id="detailView">
+  <div class="detail-header">
+    <h2 class="detail-title"><i class="fas fa-robot"></i> <span id="detailCameraTitle"></span></h2>
+    <button class="close-btn" id="closeDetail"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="detail-content">
+    <div class="main-feed">
+      <img id="detailImg" src="" alt="详细画面">
+      <div class="feed-controls">
+        <div class="control-btn" title="全屏" onclick="openFullscreen('detailView')"><i class="fas fa-expand"></i></div>
+        <div class="control-btn" title="AI分析" onclick="checkJiaoshi()">
+          <i class="fas fa-clipboard-check"></i>
+        </div>
+        <div class="control-btn" title="拍照" onclick="takeSnapshot()">
+          <i class="fas fa-camera"></i>
+        </div>
+        <div class="control-btn" title="录像"><i class="fas fa-record-vinyl"></i></div>
+        <div class="control-btn" title="设置"><i class="fas fa-cog"></i></div>
+      </div>
+    </div>
+    <div class="detail-sidebar">
+      <div class="camera-info-card">
+        <h3 class="info-title"><i class="fas fa-info-circle"></i> 小车信息</h3>
+        <div class="info-grid" id="detailInfoGrid"></div>
+      </div>
+      <div class="timeline">
+        <h3 class="timeline-title"><i class="fas fa-history"></i> 事件时间线</h3>
+        <div class="timeline-content" id="detailTimeline"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== 7.0 数据层 ===================== */
+const PAGE_SIZE = 9;
+let allCars = [], curPage = 0, currentFloor = 'all';
+
+/* SSE 在线数量 */
+const onlineSrc = new EventSource('/online');
+onlineSrc.onmessage = e => {
+  const n = parseInt(e.data, 10);
+  document.getElementById('onlineCount') && (document.getElementById('onlineCount').textContent = n);
+};
+/* SSE 状态 */
+const statusSrc = new EventSource('/status');
+statusSrc.onmessage = e => {
+  e.data.trim().split('\n').forEach(line => {
+    const [p, f] = line.split(':');
+    const el = document.getElementById(`status-${p}`);
+    if (!el) return;
+    el.textContent = f === '1' ? '在线' : '离线';
+    el.className = `status-badge ${f === '1' ? 'status-active' : 'status-offline'}`;
+  });
+};
+
+/* 加载车辆 */
+function loadCars() {
+  fetch('/list_cars').then(r => r.json()).then(data => {
+    allCars = data;
+    renderPage();
+    allCars.forEach(watchAlarm);
+  });
+}
+/* 监听单路报警 */
+function watchAlarm(car) {
+  const src = new EventSource(`/meta/${car.port}`);
+  const danger = new Set(['bottle', 'cell phone', 'cup']);   // 需要闪红的类别
+  src.onmessage = e => {
+      const m = JSON.parse(e.data);
+      const hasDanger = m.detections?.some(d => {
+        const hit = danger.has(d.class) && d.confidence > 0.35;
+        return hit;
+      });
+
+      const card = document.getElementById(`card-${car.port}`);
+      if (card) {
+        card.classList.toggle('alarm', hasDanger);
+      } else {
+        console.warn('[watchAlarm] card not found for port', car.port);
+      }
+    };
+  src.onerror = () => src.close();                     // 出错自动断
+}
+/* 渲染分页 */
+function renderPage() {
+  const grid = document.getElementById('camerasGrid');
+  grid.innerHTML = '';
+  let filtered = allCars;
+  if (currentFloor !== 'all') filtered = allCars.filter(c => c.area.includes(currentFloor));
+  const total = Math.ceil(filtered.length / PAGE_SIZE);
+  curPage = Math.min(curPage, total - 1);
+  const start = curPage * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, filtered.length);
+  filtered.slice(start, end).forEach(car => grid.appendChild(createCard(car)));
+  document.getElementById('prevPageBtn').disabled = curPage === 0;
+  document.getElementById('nextPageBtn').disabled = curPage >= total - 1;
+  document.getElementById('pageInfo').textContent = `第 ${curPage + 1} / ${total} 页（共 ${filtered.length} 辆）`;
+}
+/* 创建卡片 */
+function createCard(car) {
+  const div = document.createElement('div');
+  div.className = 'camera-card';
+  div.id = `card-${car.port}`;
+  div.innerHTML = `
+    <div class="camera-header">
+      <div class="camera-title"><i class="fas fa-robot"></i> ${car.name}</div>
+      <div class="camera-status">
+        <span id="status-${car.port}" class="status-badge status-warning">检测中</span>
+        <span>${car.area}</span>
+      </div>
+    </div>
+    <div class="camera-feed">
+      <img src="/video_feed/${car.port}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMDAwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5PRkZMSU5FPC90ZXh0Pjwvc3ZnPg=='">
+      <div class="camera-overlay">
+        <div class="camera-info">端口 ${car.port}</div>
+        <div class="camera-actions">
+          <div class="action-btn" title="全屏" onclick="openFullscreen(this.closest('.camera-card').querySelector('img'))"><i class="fas fa-expand"></i></div>
+          <div class="action-btn" title="详情" onclick="showDetail(${car.port})"><i class="fas fa-info-circle"></i></div>
+        </div>
+      </div>
+    </div>
+  `;
+  return div;
+}
+/* 详情抽屉 */
+function showDetail(port) {
+  window._currentDetailPort = port;
+  const car = allCars.find(c => c.port == port);
+  if (!car) return;
+  document.getElementById('detailCameraTitle').textContent = car.name;
+  document.getElementById('detailImg').src = `/video_feed/${port}`;
+  const grid = document.getElementById('detailInfoGrid');
+  grid.innerHTML = `
+    <div class="info-item"><span class="info-label">端口</span><span class="info-value">${car.port}</span></div>
+    <div class="info-item"><span class="info-label">区域</span><span class="info-value">${car.area}</span></div>
+    <div class="info-item"><span class="info-label">状态</span><span class="info-value" id="detailStatus">检测中</span></div>
+    <div class="info-item"><span class="info-label">FPS</span><span class="info-value" id="detailFps">--</span></div>
+  `;
+  document.getElementById('detailView').classList.add('active');
+  if (window._metaSrc) window._metaSrc.close();
+  window._metaSrc = new EventSource(`/meta/${port}`);
+    window._metaSrc.onmessage = e => {
+      const m = JSON.parse(e.data);
+
+      document.getElementById('detailStatus').textContent = m.latency_ms >= 0 ? '在线' : '离线';
+      document.getElementById('detailFps').textContent = m.fps || '--';
+
+      // ✅ 报警检测
+      const danger = ['bottle', 'cell phone', 'cup'];
+      const hasDanger = m.detections?.some(d =>
+        danger.includes(d.class) && d.confidence > 0.35
+      );
+
+      const feed = document.querySelector('.main-feed');
+      if (hasDanger) {
+        feed.classList.add('alarm');
+      } else {
+        feed.classList.remove('alarm');
+      }
+      // ✅ 时间线更新
+      const tl = document.getElementById('detailTimeline');
+      tl.innerHTML = (m.detections || []).map(d => `
+        <div class="timeline-item">
+          <div class="timeline-time">${new Date().toLocaleTimeString()}</div>
+          <div class="timeline-event">
+            <span class="event-badge event-motion">${d.class}</span>
+            <div>置信度 ${(d.confidence * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+      `).join('');
+    };
+}
+document.getElementById('closeDetail').onclick = () => {
+  document.getElementById('detailView').classList.remove('active');
+  if (window._metaSrc) { window._metaSrc.close(); window._metaSrc = null; }
+};
+
+/* 全屏 */
+function openFullscreen(el) {
+  const elem = typeof el === 'string' ? document.getElementById(el) : el;
+  const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen || elem.mozRequestFullScreen;
+  req?.call(elem);
+}
+
+/* 楼层/分页 */
+document.querySelectorAll('.floor-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.floor-btn').forEach(b => b.classList.toggle('active', b === btn));
+    currentFloor = btn.dataset.floor;
+    curPage = 0;
+    renderPage();
+  };
+});
+document.getElementById('prevPageBtn').onclick = () => { if (curPage > 0) { curPage--; renderPage(); } };
+document.getElementById('nextPageBtn').onclick = () => {
+  const max = Math.ceil(allCars.filter(c => currentFloor === 'all' || c.area.includes(currentFloor)).length / PAGE_SIZE) - 1;
+  if (curPage < max) { curPage++; renderPage(); }
+};
+function takeSnapshot() {
+  const port = window._currentDetailPort;
+  if (!port) { alert("未选中任何小车"); return; }
+
+  fetch('/snapshot', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({port})
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'success') {          // ✅ 正确匹配后端返回值
+          alert('拍照成功！如需AI分析，请再点“AI分析”按钮。');
+        } else if (data.status === 'no_frame') {
+          alert('拍照失败：当前无画面，请稍后再试');
+        } else if (data.status === 'error') {
+          alert('拍照失败：' + (data.msg || '未知错误'));
+        } else {
+          alert('拍照失败：' + data.status);
+        }
+  })
+  .catch(err => {
+    alert('网络错误：' + err);
+  });
+}
+/* 时间 */
+function updateTime() {
+  const t = new Date().toLocaleTimeString();
+  document.getElementById('sysTime') && (document.getElementById('sysTime').textContent = t);
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+/* 初始化 */
+loadCars();
+setInterval(loadCars, 5000);
+// AI分析结果弹窗
+async function checkJiaoshi() {
+  const res = await fetch(`/jiaoshi_result?port=${window._currentDetailPort}`).then(r => r.json());
+  let text = '';
+  let showClean = false;          // 是否显示“清理缓存”按钮
+
+  if (res.code === 0) {
+    text = '请先拍照';
+  } else if (res.code === 1) {
+    text = '请稍后';
+  } else if (res.code === 2) {
+    text = `判断结果：${{'1':'正常','2':'异常','3':'错误'}[res.result]}`;
+  } else if (res.code === 9) {    // 新增状态码：同时存在
+    text = '请先清理缓存（照片已更新，需重新分析）';
+    showClean = true;
+  }
+
+  // 创建大弹窗
+  const popup = document.createElement('div');
+  popup.style.cssText = `
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:#051b33; color:#e6f1ff; padding:30px 40px; border-radius:12px;
+    box-shadow:0 0 30px rgba(52,152,219,.8); z-index:3000; font-size:1.4rem;
+    min-width:380px; text-align:center;
+  `;
+  popup.innerHTML = `
+    <div>${text}</div>
+    ${showClean ? '<button id="cleanBtn" style="margin-top:20px;padding:8px 18px;border-radius:6px;background:#e74c3c;color:#fff;border:none;cursor:pointer;font-size:1rem;">清理缓存</button>' : '<br><small style="color:#a3c4e8">点击空白处关闭</small>'}
+  `;
+  document.body.appendChild(popup);
+
+  // 绑定清理事件
+  if (showClean) {
+    document.getElementById('cleanBtn').onclick = async () => {
+      await fetch('/clean_cache', {method: 'POST'});
+      popup.remove();
+      alert('缓存已清理，请再次点击“AI分析”开始新分析。');
+    };
+  }
+
+  popup.onclick = e => { if (e.target === popup) popup.remove(); };
+}
+  // 退出登录逻辑
+  document.getElementById('logoutArea').addEventListener('click', () => {
+    if (confirm('确定要退出登录吗？')) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('username');
+      sessionStorage.clear();
+      location.href = '/';   // 跳回登录页
+    }
+  });
+
+</script>
+<style>
+/* 保证在最后，权重最高 */
+.camera-card.alarm {
+  animation: alarm-blink 0.6s infinite !important;
+}
+
+@keyframes alarm-blink {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.8); }
+  50%  { box-shadow: 0 0 20px 8px rgba(255, 0, 0, 0.9); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+</style>
+</body>
+</html>

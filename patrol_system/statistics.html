@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>数据统计 - AI方工作室</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--primary:#3498db;--dark-bg:#0a2647;--darker-bg:#051b33;--card-bg:rgba(30,80,140,.7);--text:#e6f1ff;--text-secondary:#a3c4e8;--success:#00ff9d;--danger:#e74c3c;--warning:#f39c12}
+    body{background:linear-gradient(135deg,var(--darker-bg) 0%,var(--dark-bg) 100%);color:var(--text);margin:0;font-family:'Segoe UI','Microsoft YaHei',sans-serif;min-height:100vh}
+    .container{max-width:1200px;margin:0 auto;padding:2rem 1rem}
+    h2{display:flex;align-items:center;gap:.5rem;margin-bottom:1.5rem}
+    .card{background:var(--card-bg);border-radius:12px;padding:1.5rem;border:1px solid rgba(52,152,219,.2);margin-bottom:1.5rem}
+    .back-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.2rem;border-radius:8px;background:rgba(52,152,219,.15);color:var(--text);border:1px solid rgba(52,152,219,.3);text-decoration:none;transition:all .3s ease;margin-bottom:1rem}
+    .back-btn:hover{background:rgba(52,152,219,.3)}
+    canvas{max-height:320px}
+    .legend{display:flex;gap:1.5rem;justify-content:center;margin-top:1rem}
+    .legend-item{display:flex;align-items:center;gap:.5rem;font-size:.9rem}
+    .legend-color{width:14px;height:14px;border-radius:3px}
+    .loading{text-align:center;padding:2rem;color:var(--text-secondary)}
+    .error{color:var(--danger);text-align:center;padding:1rem}
+  </style>
+<base target="_blank">
+</head>
+<body>
+<div class="container">
+  <a href="/home" class="back-btn" target="_self">
+    <i class="fas fa-arrow-left"></i> 返回监控中心
+  </a>
+  <h2><i class="fas fa-chart-line"></i> 近 3 天AI统计</h2>
+
+  <div id="loading" class="loading">
+    <i class="fas fa-spinner fa-spin"></i> 正在加载数据...
+  </div>
+
+  <div id="error" class="error" style="display:none"></div>
+
+  <!-- 折线图 -->
+  <div class="card" id="lineChartContainer" style="display:none">
+    <canvas id="lineChart"></canvas>
+  </div>
+
+  <!-- 饼图 -->
+  <div class="card" id="pieChartContainer" style="display:none">
+    <canvas id="pieChart"></canvas>
+  </div>
+
+  <!-- 无数据提示 -->
+  <div id="noData" class="card" style="display:none;text-align:center">
+    <i class="fas fa-inbox" style="font-size:3rem;opacity:0.5;margin-bottom:1rem"></i>
+    <h3>暂无数据</h3>
+    <p>最近3天没有AI事件记录</p>
+  </div>
+</div>
+
+<script>
+// 获取最近N天的日期数组
+function getRecentDays(days) {
+  const result = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    result.push(`${y}-${m}-${day}`);
+  }
+  return result;
+}
+
+// 计算日期时间范围
+function getDateRange(days) {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+
+  // 格式化为YYYY-MM-DD HH:MM:SS
+  const format = (date) => {
+    return date.toISOString().replace('T', ' ').substring(0, 19);
+  };
+
+  return {
+    start: format(start),
+    end: format(end)
+  };
+}
+
+// 获取事件数据
+async function fetchEvents(days) {
+  try {
+    // 使用专门的事件接口获取最近N天数据
+    const res = await fetch(`/event_list_recent?days=${days}`);
+    if (!res.ok) {
+      throw new Error(`服务器错误: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.list || [];
+  } catch (error) {
+    console.error('获取事件数据失败:', error);
+    throw error;
+  }
+}
+
+// 按天汇总数据
+function aggregateDataByDay(events, days) {
+  const dateMap = {};
+  const dates = getRecentDays(days);
+
+  // 初始化数据结构
+  dates.forEach(date => {
+    dateMap[date] = {
+      '正常': 0,
+      '错误': 0,
+      '其他': 0
+    };
+  });
+
+  // 处理每个事件
+  events.forEach(event => {
+    const eventDate = event.time.split(' ')[0];
+
+    // 只处理最近days天内的事件
+    if (dates.includes(eventDate)) {
+      let type;
+      switch(event.result) {
+        case 1: type = '正常'; break;
+        case 2: type = '错误'; break;
+        default: type = '其他'; break;
+      }
+
+      if (dateMap[eventDate]) {
+        dateMap[eventDate][type]++;
+      }
+    }
+  });
+
+  return dateMap;
+}
+
+// 绘制折线图
+function drawLineChart(data, days) {
+  const dates = getRecentDays(days);
+  const ctx = document.getElementById('lineChart').getContext('2d');
+
+  const chartData = {
+    labels: dates,
+    datasets: [
+      {
+        label: '正常',
+        data: dates.map(date => data[date]['正常'] || 0),
+        borderColor: '#00ff9d',
+        backgroundColor: 'rgba(0,255,157,.15)',
+        tension: 0.3,
+        fill: true
+      },
+      {
+        label: '错误',
+        data: dates.map(date => data[date]['错误'] || 0),
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231,76,60,.15)',
+        tension: 0.3,
+        fill: true
+      },
+      {
+        label: '其他',
+        data: dates.map(date => data[date]['其他'] || 0),
+        borderColor: '#f39c12',
+        backgroundColor: 'rgba(243,156,18,.15)',
+        tension: 0.3,
+        fill: true
+      }
+    ]
+  };
+
+  const config = {
+    type: 'line',
+    data: chartData,
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#e6f1ff',
+            font: {
+              size: 14
+            }
+          }
+        },
+        title: {
+          display: true,
+          text: '近3天AI事件趋势',
+          color: '#e6f1ff',
+          font: {
+            size: 16
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#a3c4e8'
+          },
+          grid: {
+            color: 'rgba(255,255,255,.1)'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: '#a3c4e8',
+            stepSize: 1
+          },
+          grid: {
+            color: 'rgba(255,255,255,.1)'
+          }
+        }
+      }
+    }
+  };
+
+  return new Chart(ctx, config);
+}
+
+// 绘制饼图
+function drawPieChart(data, days) {
+  const dates = getRecentDays(days);
+  const ctx = document.getElementById('pieChart').getContext('2d');
+
+  // 汇总所有数据
+  const summary = {
+    '正常': 0,
+    '错误': 0,
+    '其他': 0
+  };
+
+  dates.forEach(date => {
+    summary['正常'] += data[date]['正常'] || 0;
+    summary['错误'] += data[date]['错误'] || 0;
+    summary['其他'] += data[date]['其他'] || 0;
+  });
+
+  const total = summary['正常'] + summary['错误'] + summary['其他'];
+
+  const chartData = {
+    labels: ['正常', '错误', '其他'],
+    datasets: [{
+      data: [summary['正常'], summary['错误'], summary['其他']],
+      backgroundColor: [
+        '#00ff9d',
+        '#e74c3c',
+        '#f39c12'
+      ],
+      borderWidth: 0
+    }]
+  };
+
+  const config = {
+    type: 'pie',
+    data: chartData,
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#e6f1ff',
+            font: {
+              size: 14
+            }
+          }
+        },
+        title: {
+          display: true,
+          text: `事件分布 (总计: ${total}次)`,
+          color: '#e6f1ff',
+          font: {
+            size: 16
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = context.raw || 0;
+              const percentage = Math.round((value / total) * 100);
+              return `${label}: ${value}次 (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  };
+
+  return new Chart(ctx, config);
+}
+
+// 主函数
+async function init() {
+  const days = 3;
+  let events = [];
+
+  try {
+    // 显示加载状态
+    document.getElementById('loading').style.display = 'block';
+
+    // 获取事件数据
+    events = await fetchEvents(days);
+
+    // 隐藏加载状态
+    document.getElementById('loading').style.display = 'none';
+
+    if (events.length === 0) {
+      // 显示无数据提示
+      document.getElementById('noData').style.display = 'block';
+      return;
+    }
+
+    // 处理数据
+    const aggregatedData = aggregateDataByDay(events, days);
+
+    // 显示图表容器
+    document.getElementById('lineChartContainer').style.display = 'block';
+    document.getElementById('pieChartContainer').style.display = 'block';
+
+    // 绘制图表
+    drawLineChart(aggregatedData, days);
+    drawPieChart(aggregatedData, days);
+
+  } catch (error) {
+    // 隐藏加载状态
+    document.getElementById('loading').style.display = 'none';
+
+    // 显示错误信息
+    const errorEl = document.getElementById('error');
+    errorEl.textContent = `加载数据失败: ${error.message}`;
+    errorEl.style.display = 'block';
+
+    console.error('初始化失败:', error);
+  }
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

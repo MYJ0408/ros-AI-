@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <title>车辆管理 - 智能巡检平台</title>
+  <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+      :root{--primary:#1e88e5;--danger:#f44336;--ok:#00c853;--bg:#121826;--card:#1a202c;--light:#f5f5f5}
+      html,body{height:100%;margin:0;background:var(--bg);color:var(--light);font-family:system-ui}
+      body{display:flex;align-items:center;justify-content:center}
+
+      /* 外壳：固定大小 + 圆角 + 滚动 */
+      .wrapper{
+        width:360px;                /* 电脑固定宽 */
+        max-width:96vw;             /* 手机留边 */
+        height:70vh;                /* 电脑固定高 */
+        max-height:96vh;            /* 手机留边 */
+        background:var(--card);
+        border-radius:12px;
+        display:flex;
+        flex-direction:column;
+        overflow:hidden;            /* 关键：裁切整体滚动条 */
+      }
+
+      /* 内容区：占满剩余空间并滚动 */
+      .box{
+        flex:1;                     /* 占满剩余高 */
+        display:flex;
+        flex-direction:column;
+        padding:20px;
+        overflow-y:auto;            /* 整块滑动 */
+      }
+
+      /* 车辆列表：不再单独滚动 */
+      #carList{margin-top:10px}
+
+      /* 其余保持原样 */
+      h2{margin-top:0;text-align:center;margin-bottom:25px;font-size:1.5rem}
+      label{font-size:.95rem;margin-top:10px;display:block}
+      input{width:100%;padding:10px;margin:6px 0 15px;border:none;border-radius:6px;font-size:1rem}
+      button{cursor:pointer;border:none;border-radius:6px;font-weight:600;padding:10px 14px;margin-right:8px}
+      .btn-add{background:var(--primary);color:#fff}
+      .btn-del{background:var(--danger);color:#fff}
+      .btn-ok{background:var(--ok);color:#fff}
+      .btn-cancel{background:#555;color:#fff}
+      ul{list-style:none;padding:0;margin:0}
+      li{background:rgba(255,255,255,.05);padding:15px;border-radius:8px;margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+      li>div{flex:1 1 200px}
+      .actions{white-space:nowrap}
+      .edit-input{background:#0003;border:1px solid #555;border-radius:4px;padding:8px;color:#fff;font-size:.95rem;width:100%}
+    </style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="box">
+    <h2><i class="fas fa-robot"></i> 车辆管理</h2>
+    <a href="/" style="display:block;text-align:center;background:#00c853;color:#fff;padding:10px;border-radius:6px;text-decoration:none;margin-bottom:20px">
+      <i class="fas fa-arrow-left"></i> 返回监控中心
+    </a>
+
+    <!-- 添加车辆 -->
+    <label>端口号</label>
+    <input type="number" id="portInput" placeholder="例如 5008" min="1000" max="9999"/>
+    <label>车辆名称</label>
+    <input type="text" id="nameInput" placeholder="如：巡检小车 #004"/>
+    <label>巡检区域</label>
+    <input type="text" id="areaInput" placeholder="如：D区实验室"/>
+    <button class="btn-add" onclick="addCar()">添加车辆</button>
+
+    <!-- 车辆列表 -->
+    <ul id="carList"><li style="text-align:center;color:#888">加载中…</li></ul>
+  </div>
+</div>
+
+<script>
+const api = {
+  list : '/list_cars',
+  add  : '/add_car',
+  del  : '/remove_car',
+  upd  : '/update_car'
+};
+
+window.onload = loadCars;
+
+function loadCars() {
+  fetch(api.list)
+    .then(r => r.json())
+    .then(data => {
+      const ul = document.getElementById('carList');
+      ul.innerHTML = '';
+      if (!data.length) {
+        ul.innerHTML = '<li style="text-align:center;color:#888">暂无车辆</li>';
+        return;
+      }
+      data.forEach(car => {
+        const li = document.createElement('li');
+        li.dataset.port = car.port;
+        li.innerHTML = `
+          <div>
+            <b class="name">${car.name}</b><br/>
+            <small>端口 <span class="port">${car.port}</span></small><br/>
+            <small class="area">${car.area}</small>
+          </div>
+          <div class="actions">
+            <button onclick="editCar(this)">修改</button>
+            <button class="btn-del" onclick="removeCar(${car.port})">删除</button>
+          </div>
+        `;
+        ul.appendChild(li);
+      });
+    });
+}
+
+function addCar() {
+  const port = parseInt(document.getElementById('portInput').value);
+  const name = document.getElementById('nameInput').value.trim() || `小车 #${port}`;
+  const area = document.getElementById('areaInput').value.trim() || '未设置';
+  if (!port) { alert('请输入端口号'); return; }
+
+  fetch(api.add, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ port, name, area })
+  })
+  .then(r => r.json())
+  .then(res => {
+    alert(res.status === 'success' ? '添加成功' : (res.message || '已存在'));
+    loadCars();
+  });
+}
+
+function removeCar(port) {
+  if (!confirm(`确定删除端口 ${port} 吗？`)) return;
+  fetch(api.del, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ port })
+  })
+  .then(r => r.json())
+  .then(res => {
+    alert(res.message);
+    loadCars();
+  });
+}
+
+/* ---------- 编辑车辆 ---------- */
+function editCar(btn) {
+  const li = btn.closest('li');
+  const port = parseInt(li.querySelector('.port').textContent);
+  const oldName = li.querySelector('.name').textContent;
+  const oldArea = li.querySelector('.area').textContent;
+  const oldPort = port;
+
+  li.innerHTML = `
+    <div style="flex:1 1 100%;display:flex;flex-direction:column;gap:8px">
+      <label>端口号</label>
+      <input class="edit-input portIn" type="number" value="${oldPort}" min="1000" max="9999"/>
+      <label>车辆名称</label>
+      <input class="edit-input nameIn" type="text" value="${oldName}"/>
+      <label>巡检区域</label>
+      <input class="edit-input areaIn" type="text" value="${oldArea}"/>
+    </div>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn-ok" onclick="saveEdit(this)">保存</button>
+      <button class="btn-cancel" onclick="loadCars()">取消</button>
+    </div>
+  `;
+}
+
+function saveEdit(btn) {
+  const li = btn.closest('li');
+  const port = parseInt(li.querySelector('.portIn').value);
+  const name = li.querySelector('.nameIn').value.trim();
+  const area = li.querySelector('.areaIn').value.trim();
+  if (!port) { alert('端口号不能为空'); return; }
+
+  fetch(api.upd, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ port, name, area })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.status === 'success') {
+      alert('已保存');
+      loadCars();
+    } else {
+      alert('保存失败：' + res.message);
+    }
+  });
+}
+</script>
+</body>
+</html>

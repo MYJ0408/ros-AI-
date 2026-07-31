@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>系统后台 - AI方工作室智能巡检系统</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #3498db;
+      --dark-bg: #0a2647;
+      --darker-bg: #051b33;
+      --card-bg: rgba(30, 80, 140, .7);
+      --text: #e6f1ff;
+      --text-secondary: #a3c4e8;
+      --success: #00ff9d;
+      --danger: #e74c3c;
+    }
+
+    body {
+      background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%);
+      color: var(--text);
+      margin: 0;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      min-height: 100vh;
+    }
+
+    .admin-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, .1);
+    }
+
+    .admin-nav {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-btn {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid rgba(52, 152, 219, .3);
+      padding: .8rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .3s ease;
+    }
+
+    .nav-btn.active, .nav-btn:hover {
+      background: rgba(52, 152, 219, .3);
+      border-color: var(--primary);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin: .5rem 0;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+    }
+
+    .data-table-container {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, .1);
+    }
+
+    th {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+      border: none;
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    /* 新增：模型配置 & 提示词 & 添加用户 */
+    .admin-section label {
+      margin-top: 1rem;
+      display: block;
+      color: var(--text-secondary);
+    }
+    .admin-section select,
+    .admin-section textarea,
+    .admin-section input[type="text"],
+    .admin-section input[type="password"] {
+      width: 100%;
+      padding: .5rem;
+      margin-top: .25rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, .2);
+      background: rgba(0, 0, 0, .2);
+      color: var(--text);
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, .6);
+    }
+    .modal-content {
+      background: var(--card-bg);
+      margin: 10% auto;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 320px;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1><i class="fas fa-cogs"></i> 系统后台管理</h1>
+      <a href="/home" class="nav-btn"><i class="fas fa-arrow-left"></i> 返回监控中心</a>
+    </div>
+
+    <div class="admin-nav">
+      <button class="nav-btn active" onclick="showSection('overview')"><i class="fas fa-chart-pie"></i> 数据概览</button>
+      <button class="nav-btn" onclick="showSection('events')"><i class="fas fa-history"></i> 事件管理</button>
+      <button class="nav-btn" onclick="showSection('users')"><i class="fas fa-users"></i> 用户管理</button>
+      <button class="nav-btn" onclick="showSection('cars')"><i class="fas fa-robot"></i> 小车管理</button>
+      <button class="nav-btn" onclick="showSection('models')"><i class="fas fa-cube"></i> 模型配置</button>
+      <button class="nav-btn" onclick="showSection('upload')"><i class="fas fa-upload"></i> 上传轨迹</button>
+      <button class="nav-btn" onclick="showSection('prompt')"><i class="fas fa-comment-dots"></i> 提示词</button>
+      <button class="nav-btn" onclick="showSection('cruise')"><i class="fas fa-play-circle"></i> 巡航启动设置</button>
+    </div>
+
+    <!-- 数据概览 -->
+    <section id="overview-section" class="admin-section">
+      <h2>系统概览</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon"><i class="fas fa-users"></i></div>
+          <div class="stat-number" id="stat-user-count">0</div>
+          <div class="stat-label">注册用户</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="fas fa-robot"></i></div>
+          <div class="stat-number" id="stat-car-count">0</div>
+          <div class="stat-label">巡检小车</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="fas fa-database"></i></div>
+          <div class="stat-number" id="stat-event-count">0</div>
+          <div class="stat-label">事件记录</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="fas fa-clock"></i></div>
+          <div class="stat-label">最新事件</div>
+          <div class="stat-number" id="stat-latest-event">--</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 事件管理 -->
+    <section id="events-section" class="admin-section" style="display: none;">
+      <h2>事件记录管理</h2>
+      <div class="data-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>时间</th>
+              <th>端口</th>
+              <th>结果</th>
+              <th>描述</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="events-table-body"></tbody>
+        </table>
+        <div class="pagination">
+          <button id="events-prev-btn">上一页</button>
+          <span id="events-page-info">第 1 页</span>
+          <button id="events-next-btn">下一页</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 用户管理 -->
+    <section id="users-section" class="admin-section" style="display: none;">
+      <h2>用户管理</h2>
+      <button class="nav-btn" onclick="showAddUserModal()">
+        <i class="fas fa-user-plus"></i> 添加用户
+      </button>
+      <div class="data-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>用户名</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 小车管理 -->
+    <section id="cars-section" class="admin-section" style="display: none;">
+      <h2>巡检小车管理</h2>
+      <p><a href="/car_manager.html" target="_blank">前往设备管理页面进行详细配置 <i class="fas fa-external-link-alt"></i></a></p>
+    </section>
+
+    <!-- 模型配置 -->
+    <section id="models-section" class="admin-section" style="display: none;">
+      <h2>模型与地图文件</h2>
+      <label>YOLO 模型 (.pt)</label>
+      <select id="sel-yolo"></select>
+
+      <label>PGM 地图</label>
+      <select id="sel-pgm"></select>
+
+      <label>YAML 配置</label>
+      <select id="sel-yaml"></select>
+
+      <button class="nav-btn" onclick="applyModels()" style="margin-top:1rem;">应用并热加载</button>
+    </section>
+    <!-- 上传轨迹 -->
+    <section id="upload-section" class="admin-section" style="display: none;">
+      <h2>在线编辑 Parameter.json 并上传小车</h2>
+
+      <!-- 1. 地图文件名 -->
+      <label style="margin-top:1rem;display:block;color:#a3c4e8;">
+        地图配置文件名（含 .yaml）
+      </label>
+      <input id="map-name" type="text" value="myj_slam.yaml"
+             style="width:100%;padding:.5rem;margin-top:.25rem;border-radius:4px;
+                    border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.2);
+                    color:var(--text);"/>
+
+      <!-- 2. 轨迹坐标 -->
+      <label style="margin-top:1rem;display:block;color:#a3c4e8;">
+        轨迹坐标（每行 x,y）
+      </label>
+      <textarea id="xy-content" rows="12" placeholder="1.0,2.0
+    3.0,4.0
+    ..."></textarea>
+
+      <!-- 3. 上传按钮 -->
+      <button class="nav-btn" onclick="uploadXY()" style="margin-top:1rem;">
+        <i class="fas fa-paper-plane"></i> 立即上传
+      </button>
+
+      <!-- 4. 实时日志 -->
+      <pre id="upload-log" style="margin-top:1rem;color:#00ff9d;"></pre>
+    </section>
+  </div>
+
+  <!-- 添加用户弹窗 -->
+  <div id="add-user-modal" class="modal">
+    <div class="modal-content">
+      <h3>添加用户</h3>
+      <input id="new-username" type="text" placeholder="用户名" />
+      <input id="new-password" type="password" placeholder="密码" />
+      <div style="text-align:right; margin-top:1rem;">
+        <button class="nav-btn" onclick="addUser()">确定</button>
+        <button class="nav-btn" onclick="closeAddUserModal()" style="background:var(--danger);">取消</button>
+      </div>
+    </div>
+  </div>
+    <!-- 巡航启动设置 -->
+    <section id="cruise-section" class="admin-section" style="display:none;">
+      <h2>巡航启动设置</h2>
+
+      <div style="display:flex;gap:0.6rem;margin-bottom:1.2rem;">
+        <button class="nav-btn" onclick="fetch('/1.py').then(r=>r.text()).then(t=>alert(t))"><i class="fas fa-play"></i> 运行</button>
+        <button class="nav-btn" onclick="fetch('/2.py').then(r=>r.text()).then(t=>alert(t))"><i class="fas fa-stop"></i> 停止</button>
+        <button class="nav-btn" onclick="fetch('/3.py').then(r=>r.text()).then(t=>alert(t))"><i class="fas fa-pause"></i> 暂停</button>
+      </div>
+
+      <label style="font-size:0.9rem;color:var(--text-secondary);">速度档</label>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <i class="fas fa-turtle" style="font-size:0.8rem;color:var(--text-secondary);"></i>
+        <div style="width:200px;margin-top:.6rem;">
+          <!-- 刻度与标签 -->
+          <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--text-secondary);">
+            <span>0</span><span>25%</span><span>50%</span><span>100%</span>
+          </div>
+          <!-- 短速度条 -->
+          <input id="cruise-speed" type="range" min="1" max="4" value="2"
+                 onchange="
+                   fetch('/Parameter.json')
+                     .then(r=>r.json())
+                     .then(j=>{j.speed=+this.value;return j;})
+                     .then(j=>fetch('/Parameter.json',{method:'PUT',body:JSON.stringify(j),headers:{'Content-Type':'application/json'}}))
+                 "
+                 style="width:100%;height:3px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:2px;outline:none;">
+        </div>
+      </div>
+    </section>
+
+
+
+  <script>
+    let currentEventsPage = 1;
+    const eventsPageSize = 15;
+
+    /* ---------- 导航切换 ---------- */
+    function showSection(sectionName) {
+      document.querySelectorAll('.admin-section').forEach(section => section.style.display = 'none');
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`${sectionName}-section`).style.display = 'block';
+      event.target.classList.add('active');
+
+      if (sectionName === 'events') loadEvents();
+      if (sectionName === 'users') loadUsers();
+      if (sectionName === 'models') loadCfg();
+      if (sectionName === 'prompt') loadPrompt();
+    }
+
+    /* ---------- 概览数据 ---------- */
+    async function loadOverview() {
+      try {
+        const res = await fetch('/admin/api/stats');
+        const stats = await res.json();
+        document.getElementById('stat-user-count').textContent = stats.user_count;
+        document.getElementById('stat-car-count').textContent = stats.car_count;
+        document.getElementById('stat-event-count').textContent = stats.event_count;
+        document.getElementById('stat-latest-event').textContent = stats.latest_event ? stats.latest_event.split(' ')[0] : '无';
+      } catch (e) {
+        console.error('加载统计数据失败:', e);
+      }
+    }
+
+    /* ---------- 事件管理 ---------- */
+    async function loadEvents(page = 1) {
+      try {
+        const res = await fetch(`/admin/api/events?page=${page}&pageSize=${eventsPageSize}`);
+        const data = await res.json();
+        const tbody = document.getElementById('events-table-body');
+        tbody.innerHTML = '';
+        data.list.forEach(ev => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${ev.id}</td>
+            <td>${ev.time}</td>
+            <td>${ev.port}</td>
+            <td>${ev.result}</td>
+            <td>${ev.desc}</td>
+            <td><button class="btn-danger" onclick="deleteEvent(${ev.id})">删除</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        currentEventsPage = page;
+        document.getElementById('events-page-info').textContent = `第 ${page} 页 / 共 ${Math.ceil(data.total / eventsPageSize)} 页`;
+        document.getElementById('events-prev-btn').disabled = page <= 1;
+        document.getElementById('events-next-btn').disabled = page >= Math.ceil(data.total / eventsPageSize);
+      } catch (e) {
+        console.error('加载事件失败:', e);
+      }
+    }
+
+    async function deleteEvent(id) {
+      if (!confirm('确定删除这条事件记录吗？此操作不可恢复。')) return;
+      try {
+        const res = await fetch(`/admin/api/event/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          alert('删除成功');
+          loadEvents(currentEventsPage);
+        } else {
+          alert('删除失败');
+        }
+      } catch (e) {
+        console.error('删除事件失败:', e);
+      }
+    }
+
+    /* ---------- 用户管理 ---------- */
+    async function loadUsers() {
+      try {
+        const res = await fetch('/admin/api/users');
+        const users = await res.json();
+        const tbody = document.getElementById('users-table-body');
+        tbody.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.id}</td>
+            <td>${u.username}</td>
+            <td><button class="btn-danger" onclick="deleteUser(${u.id})">删除</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('加载用户失败:', e);
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('确定删除该用户吗？')) return;
+      try {
+        const res = await fetch(`/admin/api/user/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          alert('删除成功');
+          loadUsers();
+        } else {
+          alert('删除失败');
+        }
+      } catch (e) {
+        console.error('删除用户失败:', e);
+      }
+    }
+
+    /* ---------- 添加用户 ---------- */
+    function showAddUserModal() {
+      document.getElementById('add-user-modal').style.display = 'block';
+    }
+    function closeAddUserModal() {
+      document.getElementById('add-user-modal').style.display = 'none';
+      document.getElementById('new-username').value = '';
+      document.getElementById('new-password').value = '';
+    }
+    async function addUser() {
+      const username = document.getElementById('new-username').value.trim();
+      const password = document.getElementById('new-password').value.trim();
+      if (!username || !password) return alert('用户名和密码不能为空');
+      try {
+        const res = await fetch('/admin/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          alert('添加成功');
+          closeAddUserModal();
+          loadUsers();
+        } else {
+          alert('添加失败：' + data.msg);
+        }
+      } catch (e) {
+        console.error('添加用户失败:', e);
+      }
+    }
+
+    /* ---------- 模型配置 ---------- */
+    async function loadCfg() {
+      const cfg = await fetch('/admin/api/config').then(r => r.json());
+      const loadOpts = async (selId, dir, ext, current) => {
+        const sel = document.getElementById(selId);
+        sel.innerHTML = '';
+        const files = await fetch(`/admin/api/files?dir=${dir}&ext=${ext}`).then(r => r.json());
+        files.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f; opt.text = f;
+          if (f === current) opt.selected = true;
+          sel.add(opt);
+        });
+      };
+      await loadOpts('sel-yolo', 'model', '.pt', cfg.yolo_model);
+      await loadOpts('sel-pgm', 'map', '.pgm', cfg.map_pgm);
+      await loadOpts('sel-yaml', 'map', '.yaml', cfg.map_yaml);
+    }
+
+    async function applyModels() {
+      const cfg = {
+        yolo_model: document.getElementById('sel-yolo').value,
+        map_pgm: document.getElementById('sel-pgm').value,
+        map_yaml: document.getElementById('sel-yaml').value
+      };
+      const res = await fetch('/admin/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg)
+      }).then(r => r.json());
+      alert(res.status === 'ok' ? '已热加载' : '错误：' + res.msg);
+    }
+    /* ---------- 上传轨迹 ---------- */
+    async function uploadXY(){
+      const mapName = document.getElementById('map-name').value.trim();
+      const content = document.getElementById('xy-content').value.trim();
+      if(!content){ alert('坐标内容不能为空'); return; }
+
+      // 把文本转成 JSON 数组
+      const lines = content.split(/\r?\n/).filter(l => l);
+      const xyArr = lines.map(l => {
+          const [x,y] = l.split(',').map(v => parseFloat(v));
+          return {x, y};
+      });
+      const payload = { map: mapName, xy: xyArr };
+
+      const log = document.getElementById('upload-log');
+      log.textContent = '正在生成 Parameter.json 并上传，请稍候…';
+
+      try{
+          // 1. 生成 Parameter.json
+          const resp = await fetch('/admin/api/parameter_json',{
+              method : 'POST',
+              headers: {'Content-Type':'application/json'},
+              body   : JSON.stringify(payload)
+          });
+          const js = await resp.json();
+          if(js.status !== 'ok') throw new Error(js.msg || '生成文件失败');
+
+          // 2. SCP 上传
+          log.textContent += '\n正在 SCP 上传…';
+          const upResp = await fetch('/admin/api/do_upload', {method: 'POST'});
+          const upJs   = await upResp.json();
+          log.textContent += '\n' + (upJs.msg || '上传完成！');
+      }catch(e){
+          log.textContent += '\n错误：' + e.message;
+      }
+    }
+
+    /* ---------- 提示词 ---------- */
+    async function loadPrompt() {
+      const { prompt } = await fetch('/admin/api/prompt').then(r => r.json());
+      document.getElementById('prompt-ta').value = prompt;
+    }
+
+    async function savePrompt() {
+      const prompt = document.getElementById('prompt-ta').value;
+      await fetch('/admin/api/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      alert('提示词已保存');
+    }
+
+    /* ---------- 初始 ---------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      loadOverview();
+      document.getElementById('events-prev-btn').addEventListener('click', () => {
+        if (currentEventsPage > 1) loadEvents(currentEventsPage - 1);
+      });
+      document.getElementById('events-next-btn').addEventListener('click', () => {
+        loadEvents(currentEventsPage + 1);
+      });
+    });
+
+  </script>
+</body>
+</html>
